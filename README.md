@@ -101,10 +101,10 @@ Please make sure that you put the necessary API level checks before accessing th
 	
 	```java      
 	// SDK with verification capability for only Truecaller users who have the truecaller app present on the device
-	TrueSdkScope.SDK_OPTION_WITH_OTP         
+	TrueSdkScope.SDK_OPTION_WITHOUT_OTP         
 	
-	// SDK with OTP verification functionality for all users, including non truecaller users ( via OTP verification )
-	TrueSdkScope.SDK_OPTION_WITHOUT_OTP
+	// SDK with missed call verification functionality for all users, including non truecaller users ( via missed call verification )
+	TrueSdkScope.SDK_OPTION_WITH_OTP
 	```
 
     ##### - Consent Mode 
@@ -164,7 +164,23 @@ Please make sure that you put the necessary API level checks before accessing th
       TrueSDK.getInstance().onActivityResultObtained( this,resultCode, data);
       ```
 
-8. In your selected Activity
+
+8. Trigger the truecaller verification flow by calling the following method in your app activity -
+
+    ```java 
+    TrueSDK.getInstance().getUserProfile() 
+    ```
+
+9. (Optional) Truecaller SDK gives you the capability to customize the profile dialog ( verification flow when the user has the truecaller app present on device ) in multiple Indian languages ( Refer list of supported languages [here](#supported-languages-for-profile-customization) ). To do so, add the following lines before calling the "getUserProfile()" method as mentioned in the above step - 
+	
+      ```java
+      Locale locale = new Locale("ru");
+      TrueSDK.getInstance().setLocale(locale);
+      ```
+     Note : In case the input locale is not supported, the profile will by default be shown in English language
+
+
+10. In your selected Activity
 
    - Either make the Activity implement ITrueCallback or create an instance. 
 	This interface has 3 methods: onSuccesProfileShared(TrueProfile), onFailureProfileShared(TrueError) and onOtpRequired()
@@ -190,15 +206,15 @@ Please make sure that you put the necessary API level checks before accessing th
         }
 
         @Override
-        public void onOtpRequired() {
+        public void onVerificationRequired() {
 	
 		// This method is invoked when truecaller app is not present on the device or if the user wants to
-		// continue with a different number and hence, OTP verification is required to complete the flow
-		// You can initiate the OTP verification flow from within this callback method by using :
+		// continue with a different number and hence, missed call verification is required to complete the flow
+		// You can initiate the missed call verification flow from within this callback method by using :
 	   
 		TrueSDK.getInstance().requestVerification("IN", PHONE_NUMBER_STRING, apiCallback);
 	    
-		//  Here, the first parameter is the country code of the mobile number on which the OTP needs to be
+		//  Here, the first parameter is the country code of the mobile number for which the verification needs to be
 		// triggered and PHONE_NUMBER_STRING should be the 10-digit mobile number of the user
 	
         }
@@ -208,71 +224,47 @@ Please make sure that you put the necessary API level checks before accessing th
     
    Write all the relevant logic in onSuccesProfileShared(TrueProfile) for displaying the information you have just received and onFailureProfileShared(TrueError) for handling the error and notify the user.
    
-   Similarly, make your Activity implement OtpCallback or create an instance ( Once the OTP verification is triggered using the 'requestVerification' method, the control would then be passed to OtpCallback ) .
-	This interface has 2 methods: onOtpSuccess(int, Bundle) and onOtpFailure(int, TrueException)
+   Similarly, make your Activity implement VerificationCallback or create an instance ( Once the verification is triggered using the 'requestVerification' method, the control would then be passed to VerificationCallback ) .
+	This interface has 2 methods: onRequestSuccess(int, String) and onRequestFailure(int, TrueException)
    
    ```java
-       static final OtpCallback apiCallback = new OtpCallback() {
+       static final VerificationCallback apiCallback = new VerificationCallback() {
 
         @Override
-        public void onOtpSuccess(int requestCode, @Nullable String s) {
-		if (requestCode == OtpCallback.MODE_OTP_SENT) {
+        public void onRequestSuccess(int requestCode, @Nullable String accessToken) {
+		if (requestCode == VerificationCallback.TYPE_MISSED_CALL) {
 	    
-	    		// This method is invoked when the OTP has been sent to the input mobile number.
-			// You can now ask the user to input the 6-digit OTP code sent to him via SMS and ask for his
-			// first name and last name
+	    		// This method is invoked when the missed call has been triggered to the input mobile number.
+			// You can now ask the user to input his first name and last name
 	    
-			Log.d( TAG, "OTP Sent" );
+			Log.d( TAG, "Missed Call Triggered" );
 		
-		} else if ( requestCode == OtpCallback.MODE_VERIFIED ) {
+		} else{
 	    
-			// This method is invoked when the user has successfully input the correct OTP code along with his
-			// first name and last name and is verified successfully by the SDK
+			// This method is invoked when the user has been successfully verified using the missed call flow			// along with providing his first name and last name and is verified successfully by the SDK
 	    
-			Log.d( TAG, "Verified with OTP" );
+			Log.d( TAG, "Verified Successfully" );
 		}
         }
 
         @Override
-        public void onOtpFailure(final int requestCode, @NonNull final TrueException e) {
+        public void onRequestFailure(final int requestCode, @NonNull final TrueException e) {
 	    
-		// Invoked when some error has occured while verifying the provided mobile number via OTP
+		// Invoked when some error has occured while verifying the provided mobile number via the missed call flow
 		Log.d( TAG, "OnFailureApiCallback: " + e.getExceptionMessage() );
         }
     };
     
    ```
-         
-   The SMS sent by Truecaller would be in a below mentioned standard format containing a 6-digit numeric code along with your app name ( as configured by you while creating the app key using your Truecaller developer portal account ). You can use this format to auto-read and fill the OTP code in your app activity
-   ```
-   <<123456>> is your verification code for <<AppName>> (Verification Powered by Truecaller)
-   ```
    
-   
-   To complete the verification once the OTP has been sent to the provided mobile number, complete the verification process by calling the following method from within your activity :
+   To complete the verification once the missed call has been triggered to the provided mobile number, complete the verification process by calling the following method from within your activity :
    
    ```
    TrueProfile profile = new TrueProfile.Builder(firstName, lastName).build();
-   TrueSDK.getInstance().verifyOtp(profile, otp, apiCallback);
+   TrueSDK.getInstance().verifyMissedCall(profile, apiCallback);
    
    // 'verifyOtp' method returns the control to the OtpCallback as defined in the section above
    ```
-
-  (Optional)  
-  In order to use a custom button instead of the default TrueButton call trueButton.onClick(trueButton) in its onClick listner. Make sure your button follow our visual guidelines.
-
-9. You can trigger the Truecaller profile verification dialog anywhere in your app flow by calling the following method -        
-    ```java 
-    TrueSDK.getInstance().getUserProfile() 
-    ```
-   
-10. (Optional) Truecaller SDK gives you the capability to customize the profile dialog in multiple Indian languages ( Refer list of supported languages [here](#supported-languages-for-profile-customization) ). To do so, add the following lines before calling the "getUserProfile()" method as mentioned in the above step - 
-	
-      ```java
-      Locale locale = new Locale("ru");
-      TrueSDK.getInstance().setLocale(locale);
-      ```
-     Note : In case the input locale is not supported, the profile will by default be shown in English language
      
 11. (Optional) 
     You can set a unique requestID for every profile request with
@@ -293,9 +285,9 @@ https://github.com/singhalyogesh/truesdk-backend-validation
 
 IMPORTANT: Truecaller SDK already verifies the authenticity of the response before forwarding it to the your app.
 
-#### B. Server side Truecaller Profile authenticity check [ for users who verified via Truecaller OTP flow ]
+#### B. Server side Truecaller Profile authenticity check [ for users who verified via Truecaller missed call flow ]
 
-In OnSuccess method of OtpCallback, in case of MODE_VERIFIED, you can fetch the access token string. You can forward this field back to your backend and verify the authenticity of the information by using the following endpoint:
+In onRequestSuccess method of VerificationCallback, you can fetch the access token string. You can forward this field back to your backend and verify the authenticity of the information by using the following endpoint:
 
 **Endpoint:**  
 https://api4.truecaller.com/v1/otp/installation/validate/{accessToken}
