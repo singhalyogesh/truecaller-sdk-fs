@@ -281,7 +281,7 @@ Inside TrueProfile class there are 2 important fields, payload and signature. Pa
 
 
 For details on the verification flow and sample code snippets, please refer the following link :
-https://github.com/singhalyogesh/truesdk-backend-validation
+https://github.com/truecaller/backend-sdk-validation
 
 IMPORTANT: Truecaller SDK already verifies the authenticity of the response before forwarding it to the your app.
 
