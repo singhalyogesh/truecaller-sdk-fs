@@ -1,5 +1,19 @@
 # Android SDK 0.7
 
+### Understanding how the user verification flow works
+
+#### A. Truecaller app present on device
+
+ - Truecaller app needs to be installed on the user's device. User starts by clicking on your defined CTA ( Login / Verify / Signup etc. ) or you can even directly trigger the Truecaller verification anywhere in your app flow. User would then be shown the standard Truecaller profile verification dialog asking for user's consent. The user authorizes by clicking verify and their Truecaller profile would be shared with the app as response object
+ 
+ ![Diagram](https://user-images.githubusercontent.com/6050698/43194936-442d85e0-9021-11e8-9347-c2930df43cbe.png)
+
+#### B. Truecaller app not present on device
+
+ - If the user is verifying on an app using Truecaller SDK for the first time using his mobile number on a device, truecaller will trigger a missed call to the user input mobile number. If the missed call is successfully triggered and detected by the SDK on the device, the user will be verified. You need to capture the first name and last name of the user and pass it to the SDK to complete the verification
+ - If the user verifying on an app using Truecaller SDK when he has already been verified earlier using his mobile number on that device in the same app or any other app present on the device, then as soon as the user inputs his mobile number, SDK will directly complete the verification without the need of another missed call to be sent to the user.
+
+
 ## Getting started
 
 ### Account Setup
@@ -14,21 +28,6 @@ keytool -list -v -keystore mystore.keystore
 
 Once we have received the package name and the SHA-1 signing-fingerprint, we will provide you with a unique "PartnerKey" which you need to include in your project to authorize all verification requests.
 
-### Understanding how the user verification flow works
-
-#### A. Truecaller app present on device
-
- - User starts by clicking on your Login / Signup CTA and would be shown the standard Truecaller consent popup asking for the user's consent. The user authorizes by clicking continue and their Truecaller profile would be shared with you
-
-#### B. Truecaller app not present on device
-
- - User verifying on an app using Truecaller SDK for the first time using his mobile number on a device :
-![Diagram](https://github.com/singhalyogesh/sdk-doc/blob/master/1.png)
- - User verifying on an app using Truecaller SDK when he has already been verified earlier using his mobile number on that device in the same app or any other app present on the device :
-![Diagram](https://github.com/singhalyogesh/sdk-doc/blob/master/2.png)
- - User verifying on an app using Truecaller SDK using either a different phone number on the same device or using the same number on a different device :
-![Diagram](https://github.com/singhalyogesh/sdk-doc/blob/master/3.png)
-
 
 ### Using the SDK with your Android Studio Project
 
@@ -37,6 +36,7 @@ Once we have received the package name and the SHA-1 signing-fingerprint, we wil
 <uses-sdk tools:overrideLibrary="com.truecaller.android.sdk"/>
 ```
 Using this would ensure that the sdk works normally for API level 16 & above, and would be disabled for API level < 16
+Please make sure that you put the necessary API level checks before accessing the SDK methods in case compiling for API level < 16
 
 2. Add the provided truesdk-0.7-releasePartner.aar file into your libs folder. Example path: /app/libs/ 
 3. Open the build.gradle of your application module and ensure that your lib folder can be used as a repository :
@@ -74,17 +74,12 @@ Using this would ensure that the sdk works normally for API level 16 & above, an
     </application>
     ```
 
-6. Add the TrueButton view in the selected layout. You can have only one TrueButton per Activity
-
+6. Check if the truecaller app is present on the user's device or not by using the following method
     ```java
-    
-    <com.truecaller.android.sdk.TrueButton
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    truesdk:truebutton_text="cont"/>
+    TrueSDK.getInstance().isUsable()
     ```
-
-7. Create a TrueSdkScope object by using the appropriate configurational settings and use it to initialize the TrueSDK in your android activity's onCreate method:
+    
+    Accordingly, if the truecaller app is present on the device - Create a TrueSdkScope object by using the appropriate configurational settings and use it to initialize the TrueSDK in your android activity's onCreate method:
     
      ```java
      TrueSdkScope trueScope = new TrueSdkScope.Builder(this, sdkCallback)
@@ -163,25 +158,13 @@ Using this would ensure that the sdk works normally for API level 16 & above, an
 	TrueSdkScope.SDK_CONSENT_TITLE_GET_STARTED
 	```
 
- 8. (Optional) 
-    You can set a unique requestID for every profile request with
-    `TrueSDK.getInstance().setRequestNonce(customHash);`
-    
-    Note : The customHash must be a base64 URL safe string with a minimum character length of 8 and maximum of 64 characters
-
- 9. Initialise the TrueButton in the onCreate method:
-
-      ```java
-      TrueButton trueButton = findViewById(R.id.com_truecaller_android_sdk_truebutton);
-      ```
-    
- 10. Add the following condition in the onActivityResult method:
+7. Add the following condition in the onActivityResult method:
 
       ```java
       TrueSDK.getInstance().onActivityResultObtained( this,resultCode, data);
       ```
-      
- 11. In your selected Activity
+
+8. In your selected Activity
 
    - Either make the Activity implement ITrueCallback or create an instance. 
 	This interface has 3 methods: onSuccesProfileShared(TrueProfile), onFailureProfileShared(TrueError) and onOtpRequired()
@@ -278,6 +261,26 @@ Using this would ensure that the sdk works normally for API level 16 & above, an
   (Optional)  
   In order to use a custom button instead of the default TrueButton call trueButton.onClick(trueButton) in its onClick listner. Make sure your button follow our visual guidelines.
 
+9. You can trigger the Truecaller profile verification dialog anywhere in your app flow by calling the following method -        
+    ```java 
+    TrueSDK.getInstance().getUserProfile() 
+    ```
+   
+10. (Optional) Truecaller SDK gives you the capability to customize the profile dialog in multiple Indian languages ( Refer list of supported languages [here](#supported-languages-for-profile-customization) ). To do so, add the following lines before calling the "getUserProfile()" method as mentioned in the above step - 
+	
+      ```java
+      Locale locale = new Locale("ru");
+      TrueSDK.getInstance().setLocale(locale);
+      ```
+     Note : In case the input locale is not supported, the profile will by default be shown in English language
+     
+11. (Optional) 
+    You can set a unique requestID for every profile request with
+    `TrueSDK.getInstance().setRequestNonce(customHash);`
+    
+    Note : The customHash must be a base64 URL safe string with a minimum character length of 8 and maximum of 64 characters
+
+
 ### Advanced and Optional
 
 #### A. Server side Truecaller Profile authenticity check [ for users who verified via Truecaller app consent flow ]
@@ -346,3 +349,23 @@ Every request sent via a Truecaller app that supports truecaller SDK 0.7 has a u
 2. In `ITrueCallback.onSuccesProfileShared(TrueProfile)` verify that the previously generated identifier matches the one in TrueProfile.requestNonce.
 
 IMPORTANT: Truecaller SDK already verifies the Request-Response correlation before forwarding it to the your app.
+
+### Supported languages for profile customization
+   
+Truecaller SDK provides developers flexibility to customize the user verification profile screen in multiple Indian languages. Please refer below for the list of all supported languages. 
+    
+     - English
+     - Hindi
+     - Bhojpuri
+     - Rajasthani
+     - Haryanvi
+     - Marathi
+     - Telugu
+     - Malayalam
+     - Gujarati
+     - Punjabi
+     - Tamil
+     - Bengali
+     - Kannada
+     - Odia
+     - Assamese
